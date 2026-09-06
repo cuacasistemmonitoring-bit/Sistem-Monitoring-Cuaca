@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Monitoring Station - Politeknik Negeri Lampung</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f4f7f6;
+            --sidebar-bg: #ffffff;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --text-muted: #7f8c8d;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            
+            /* Soft Unified Accent Colors per Parameter */
+            --c-temp: #e67e22;      /* Warm Orange */
+            --c-hum: #2980b9;       /* Soft Blue */
+            --c-wind: #27ae60;      /* Soft Green */
+            --c-solar: #f1c40f;     /* Amber Yellow */
+            --c-rain: #8e44ad;      /* Soft Purple */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        aside {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 20px;
+            flex-shrink: 0;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 36px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand-logo {
+            width: 42px;
+            height: 42px;
+            background: #eef2f7;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #34495e;
+            font-size: 14px;
+        }
+
+        .brand-text h1 {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: 0.5px;
+        }
+
+        .brand-text p {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13.5px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background-color: #f0f4f8;
+            color: #2c3e50;
+        }
+
+        .nav-item.active {
+            font-weight: 600;
+            box-shadow: inset 3px 0 0 #3498db;
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .header-top h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff;
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background-color: #27ae60;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        /* Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            padding: 22px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-title-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-box {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        /* Specific Card Styles & Colors */
+        .card-temp .icon-box { background: rgba(230, 126, 34, 0.12); color: var(--c-temp); }
+        .card-hum .icon-box { background: rgba(41, 128, 185, 0.12); color: var(--c-hum); }
+        .card-wind .icon-box { background: rgba(39, 174, 96, 0.12); color: var(--c-wind); }
+        .card-solar .icon-box { background: rgba(241, 196, 15, 0.15); color: #d4ac0d; }
+        .card-rain .icon-box { background: rgba(142, 68, 173, 0.12); color: var(--c-rain); }
+
+        .card-body {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 10px 0;
+            min-height: 110px;
+        }
+
+        /* Visual Elements Inside Cards */
+        .metric-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .metric-unit {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Vertical Progress Bar */
+        .v-bar-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 90px;
+            justify-content: flex-end;
+        }
+
+        .v-bar {
+            width: 10px;
+            background: #edf2f7;
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .v-bar-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            border-radius: 6px;
+            transition: height 0.5s ease;
+        }
+
+        .card-temp .v-bar-fill { background: var(--c-temp); height: 65%; }
+        .card-solar .v-bar-fill { background: var(--c-solar); height: 45%; }
+
+        /* Multi Vertical Bars for Rainfall */
+        .rain-bars {
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .rain-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .rain-bar-wrap {
+            width: 8px;
+            height: 70px;
+            background: #edf2f7;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rain-bar-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: var(--c-rain);
+            border-radius: 4px;
+        }
+
+        .rain-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .rain-val {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Circular Gauge for Humidity */
+        .gauge-circle {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: conic-gradient(var(--c-hum) 0deg 240deg, #edf2f7 240deg 360deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .gauge-inner {
+            width: 72px;
+            height: 72px;
+            background: #ffffff;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Compass for Wind */
+        .compass-box {
+            width: 80px;
+            height: 80px;
+            border: 2px dashed var(--border-color);
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .compass-needle {
+            position: absolute;
+            width: 4px;
+            height: 45px;
+            background: var(--c-wind);
+            border-radius: 2px;
+            transform: rotate(45deg);
+            transform-origin: bottom center;
+            bottom: 40px;
+        }
+
+        .compass-dir {
+            font-size: 10px;
+            position: absolute;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+        .dir-n { top: 2px; }
+        .dir-s { bottom: 2px; }
+        .dir-w { left: 4px; }
+        .dir-e { right: 4px; }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (max-width: 768px) {
+            body { flex-direction: column; height: auto; }
+            aside { width: 100%; height: auto; }
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="brand">
+            <div class="brand-logo">POLTEK</div>
+            <div class="brand-text">
+                <h1>WEATHER STATION</h1>
+                <p>Politeknik Negeri Lampung</p>
+            </div>
+        </div>
+        <div class="nav-menu">
+            <a href="#" class="nav-item active">
+                <span>📊</span> Data Realtime
+            </a>
+            <a href="#" class="nav-item">
+                <span>📈</span> Grafik Parameter
+            </a>
+            <a href="#" class="nav-item">
+                <span>📁</span> Histori & Export
+            </a>
+        </div>
+    </aside>
+
+    <main>
+        <div class="header-top">
+            <h2>Monitoring Realtime</h2>
+            <div class="status-badge">
+                <div class="dot"></div>
+                <span>Sistem Terhubung (Online)</span>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- TEMPERATURE -->
+            <div class="card card-temp">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <div class="icon-box">🌡️</div>
+                        <span class="card-title">TEMPERATURE</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="v-bar-container">
+                        <div class="v-bar">
+                            <div class="v-bar-fill" style="height: 68%;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="metric-value">28.4</span>
+                        <span class="metric-unit">°C</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HUMIDITY -->
+            <div class="card card-hum">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <div class="icon-box">💧</div>
+                        <span class="card-title">HUMIDITY</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="gauge-circle">
+                        <div class="gauge-inner">
+                            <span class="metric-value" style="font-size: 18px;">78</span>
+                            <span style="font-size: 9px; color: var(--text-muted); font-weight: 700;">%RH</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WIND SPEED -->
+            <div class="card card-wind">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <div class="icon-box">💨</div>
+                        <span class="card-title">WIND SPEED</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="compass-box">
+                        <span class="compass-dir dir-n">N</span>
+                        <span class="compass-dir dir-s">S</span>
+                        <span class="compass-dir dir-w">W</span>
+                        <span class="compass-dir dir-e">E</span>
+                        <div class="compass-needle" style="transform: rotate(120deg);"></div>
+                    </div>
+                    <div>
+                        <span class="metric-value">3.2</span>
+                        <span class="metric-unit">m/s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SOLAR / LIGHT -->
+            <div class="card card-solar">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <div class="icon-box">☀️</div>
+                        <span class="card-title">SOLAR / LIGHT</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="v-bar-container">
+                        <div class="v-bar">
+                            <div class="v-bar-fill" style="height: 82%;"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="metric-value">850</span>
+                        <span class="metric-unit">Lux</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RAINFALL -->
+            <div class="card card-rain" style="grid-column: span 2;">
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <div class="icon-box">🌧️</div>
+                        <span class="card-title">RAINFALL</span>
+                    </div>
+                </div>
+                <div class="card-body" style="justify-content: space-around;">
+                    <div class="rain-item">
+                        <div class="rain-bar-wrap">
+                            <div class="rain-bar-fill" style="height: 15%;"></div>
+                        </div>
+                        <span class="rain-label">DAILY</span>
+                        <span class="rain-val">1.2 mm</span>
+                    </div>
+                    <div class="rain-item">
+                        <div class="rain-bar-wrap">
+                            <div class="rain-bar-fill" style="height: 45%;"></div>
+                        </div>
+                        <span class="rain-label">MONTHLY</span>
+                        <span class="rain-val">45.8 mm</span>
+                    </div>
+                    <div class="rain-item">
+                        <div class="rain-bar-wrap">
+                            <div class="rain-bar-fill" style="height: 75%;"></div>
+                        </div>
+                        <span class="rain-label">ANNUAL</span>
+                        <span class="rain-val">120.4 mm</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
