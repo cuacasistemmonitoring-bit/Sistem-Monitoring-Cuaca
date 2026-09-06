@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Station Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js for Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-main: #f8fafc;
+            --sidebar-bg: #ffffff;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --accent-primary: #3b82f6;
+            
+            /* Parameter Colors */
+            --c-temp: #ef4444;
+            --c-hum: #0ea5e9;
+            --c-wind: #10b981;
+            --c-light: #eab308;
+            --c-rain: #8b5cf6; /* Purple for rain */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navigation */
+        aside {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+        }
+
+        .brand {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 40px;
+            padding-left: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            background-color: #f1f5f9;
+        }
+
+        .nav-item.active {
+            background-color: #eff6ff;
+            color: var(--accent-primary);
+            font-weight: 600;
+        }
+
+        /* Main Content Area */
+        main {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        /* Status & Time Widget (Page 1) */
+        .status-widget {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .dot-pulse {
+            width: 10px;
+            height: 10px;
+            background-color: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        .dot-pulse.offline {
+            background-color: #ef4444;
+            animation: none;
+            box-shadow: none;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .time-display {
+            text-align: right;
+        }
+
+        .time-display .time { font-size: 20px; font-weight: 700; }
+        .time-display .date { font-size: 13px; color: var(--text-muted); }
+
+        /* Grid Layouts */
+        .grid-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        /* Realtime Cards (Page 1) */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .card-title-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-value {
+            font-size: 36px;
+            font-weight: 700;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .card-unit {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .card-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        /* Specific Card Colors */
+        .c-temp { color: var(--c-temp); }
+        .bg-temp { background: rgba(239, 68, 68, 0.1); }
+        
+        .c-hum { color: var(--c-hum); }
+        .bg-hum { background: rgba(14, 165, 233, 0.1); }
+        
+        .c-wind { color: var(--c-wind); }
+        .bg-wind { background: rgba(16, 185, 129, 0.1); }
+        
+        .c-light { color: var(--c-light); }
+        .bg-light { background: rgba(234, 179, 8, 0.1); }
+
+        .c-rain { color: var(--c-rain); }
+        .bg-rain { background: rgba(139, 92, 246, 0.1); }
+
+
+        /* Graph Containers (Page 2) */
+        .graph-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            height: 300px;
+        }
+        
+        .graph-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-main);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 220px;
+            width: 100%;
+        }
+
+        /* History Table (Page 3) */
+        .table-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow-x: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            min-width: 700px;
+        }
+
+        th, td {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        td {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background-color: #f1f5f9;
+        }
+
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="brand">
+            <span>🌦️</span> AWS Dashboard
+        </div>
+        <nav>
+            <div class="nav-item active" onclick="switchPage('page-realtime', this)">
+                <span>📊</span> Realtime Monitoring
+            </div>
+            <div class="nav-item" onclick="switchPage('page-grafik', this)">
+                <span>📈</span> Grafik Parameter
+            </div>
+            <div class="nav-item" onclick="switchPage('page-histori', this)">
+                <span>📁</span> Histori Data
+            </div>
+        </nav>
+    </aside>
+
+    <main>
+        <!-- PAGE 1: REALTIME MONITORING -->
+        <div id="page-realtime" class="page active">
+            <div class="page-header">
+                <h1 class="page-title">Realtime Monitoring</h1>
+                <p style="color: var(--text-muted); font-size: 14px;">Pantauan data sensor secara langsung dari Firebase.</p>
+            </div>
+
+            <!-- Status & Time Widget -->
+            <div class="status-widget">
+                <div class="status-indicator">
+                    <div id="conn-dot" class="dot-pulse offline"></div>
+                    <span id="conn-text" style="color: #ef4444;">Connecting...</span>
+                </div>
+                <div class="time-display">
+                    <div class="time" id="clock">00:00:00</div>
+                    <div class="date" id="date">Hari, 00 Bulan 0000</div>
+                </div>
+            </div>
+
+            <!-- 5 Parameter Grid -->
+            <div class="grid-cards">
+                <!-- Suhu -->
+                <div class="card">
+                    <div class="card-info">
+                        <span class="card-title-text">Suhu Udara</span>
+                        <div class="card-value c-temp"><span id="val-temp">--</span> <span class="card-unit">°C</span></div>
+                    </div>
+                    <div class="card-icon bg-temp c-temp">🌡️</div>
+                </div>
+                <!-- Kelembapan -->
+                <div class="card">
+                    <div class="card-info">
+                        <span class="card-title-text">Kelembapan</span>
+                        <div class="card-value c-hum"><span id="val-hum">--</span> <span class="card-unit">%</span></div>
+                    </div>
+                    <div class="card-icon bg-hum c-hum">💧</div>
+                </div>
+                <!-- Kecepatan Udara -->
+                <div class="card">
+                    <div class="card-info">
+                        <span class="card-title-text">Kecepatan Udara</span>
+                        <div class="card-value c-wind"><span id="val-wind">--</span> <span class="card-unit">m/s</span></div>
+                    </div>
+                    <div class="card-icon bg-wind c-wind">💨</div>
+                </div>
+                <!-- Intensitas Cahaya -->
+                <div class="card">
+                    <div class="card-info">
+                        <span class="card-title-text">Intensitas Cahaya</span>
+                        <div class="card-value c-light"><span id="val-light">--</span> <span class="card-unit">Lux</span></div>
+                    </div>
+                    <div class="card-icon bg-light c-light">☀️</div>
+                </div>
+                <!-- Curah Hujan -->
+                <div class="card">
+                    <div class="card-info">
+                        <span class="card-title-text">Curah Hujan</span>
+                        <div class="card-value c-rain"><span id="val-rain">--</span> <span class="card-unit">mm</span></div>
+                    </div>
+                    <div class="card-icon bg-rain c-rain">🌧️</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 2: GRAFIK PARAMETER -->
+        <div id="page-grafik" class="page">
+            <div class="page-header">
+                <h1 class="page-title">Grafik Parameter</h1>
+                <p style="color: var(--text-muted); font-size: 14px;">Tren data sensor terakhir (Max 15 Data).</p>
+            </div>
+            
+            <div class="grid-cards">
+                <div class="graph-card">
+                    <div class="graph-title">Tren Suhu Udara (°C)</div>
+                    <div class="chart-container">
+                        <canvas id="chartTemp"></canvas>
+                    </div>
+                </div>
+                <div class="graph-card">
+                    <div class="graph-title">Tren Kelembapan (%)</div>
+                    <div class="chart-container">
+                        <canvas id="chartHum"></canvas>
+                    </div>
+                </div>
+                <div class="graph-card">
+                    <div class="graph-title">Tren Kecepatan Udara (m/s)</div>
+                    <div class="chart-container">
+                        <canvas id="chartWind"></canvas>
+                    </div>
+                </div>
+                <div class="graph-card">
+                    <div class="graph-title">Tren Intensitas Cahaya (Lux)</div>
+                    <div class="chart-container">
+                        <canvas id="chartLight"></canvas>
+                    </div>
+                </div>
+                <div class="graph-card">
+                    <div class="graph-title">Tren Curah Hujan (mm)</div>
+                    <div class="chart-container">
+                        <canvas id="chartRain"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 3: HISTORI DATA -->
+        <div id="page-histori" class="page">
+            <div class="page-header">
+                <h1 class="page-title">Histori Pembacaan Sensor</h1>
+                <p style="color: var(--text-muted); font-size: 14px;">Log data rekaman sistem yang tersimpan di Firebase.</p>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Waktu & Tanggal</th>
+                            <th>Suhu (°C)</th>
+                            <th>Kelembapan (%)</th>
+                            <th>Kec. Udara (m/s)</th>
+                            <th>Cahaya (Lux)</th>
+                            <th>Curah Hujan (mm)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- Data will be inserted here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Firebase SDK (Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+        import { getDatabase, ref, onValue, query, limitToLast, orderByChild } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDFjb-LC2ajgo4m5emQ72425B3Bn1q6jFc",
+            authDomain: "sistem-monitoring-cuaca-eba48.firebaseapp.com",
+            databaseURL: "https://sistem-monitoring-cuaca-eba48-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "sistem-monitoring-cuaca-eba48",
+            storageBucket: "sistem-monitoring-cuaca-eba48.firebasestorage.app",
+            messagingSenderId: "22461217194",
+            appId: "1:22461217194:web:fc7031c0bcb2b1b28193d3"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Referensi ke path data
+        // ESP32 mengirim HTTP POST ke /HistoriCuaca.json, jadi data tersimpan sebagai list di node 'HistoriCuaca'
+        const dataRef = query(ref(db, 'HistoriCuaca'), limitToLast(15)); 
+
+        // Update UI Status Connection
+        const connDot = document.getElementById('conn-dot');
+        const connText = document.getElementById('conn-text');
+
+        // Check Firebase connection state
+        const connectedRef = ref(db, ".info/connected");
+        onValue(connectedRef, (snap) => {
+            if (snap.val() === true) {
+                connDot.classList.remove('offline');
+                connText.style.color = '#10b981';
+                connText.textContent = 'Sistem Online (Connected)';
+            } else {
+                connDot.classList.add('offline');
+                connText.style.color = '#ef4444';
+                connText.textContent = 'Sistem Offline (Disconnected)';
+            }
+        });
+
+        // ================= CHART SETUP =================
+        const maxDataPoints = 15;
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false } },
+                y: { border: { dash: [4, 4] }, grid: { color: '#e2e8f0' } }
+            },
+            elements: {
+                line: { tension: 0.4, borderWidth: 2 },
+                point: { radius: 3, hoverRadius: 5 }
+            }
+        };
+
+        // Initialize empty charts
+        const chartTemp = new Chart(document.getElementById('chartTemp'), { type: 'line', data: { labels: [], datasets: [{ data: [], borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true }] }, options: commonOptions });
+        const chartHum = new Chart(document.getElementById('chartHum'), { type: 'line', data: { labels: [], datasets: [{ data: [], borderColor: '#0ea5e9', backgroundColor: 'rgba(14,165,233,0.1)', fill: true }] }, options: commonOptions });
+        const chartWind = new Chart(document.getElementById('chartWind'), { type: 'line', data: { labels: [], datasets: [{ data: [], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true }] }, options: commonOptions });
+        const chartLight = new Chart(document.getElementById('chartLight'), { type: 'line', data: { labels: [], datasets: [{ data: [], borderColor: '#eab308', backgroundColor: 'rgba(234,179,8,0.1)', fill: true }] }, options: commonOptions });
+        const chartRain = new Chart(document.getElementById('chartRain'), { type: 'bar', data: { labels: [], datasets: [{ data: [], backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOptions });
+
+
+        // ================= FETCH DATA DARI FIREBASE =================
+        onValue(dataRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Convert object to array for easier processing
+                let dataArray = [];
+                for (let key in data) {
+                    dataArray.push(data[key]);
+                }
+                
+                // Sorting dataArray by timestamp (asumsi timestamp format "YYYY-MM-DD HH:MM:SS")
+                dataArray.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                // Ambil data terbaru (terakhir di array)
+                const latestData = dataArray[dataArray.length - 1];
+
+                // Update Halaman Realtime
+                document.getElementById('val-temp').textContent = latestData.suhu !== undefined ? latestData.suhu : '--';
+                document.getElementById('val-hum').textContent = latestData.kelembapan !== undefined ? latestData.kelembapan : '--';
+                document.getElementById('val-wind').textContent = latestData.kecepatan_angin !== undefined ? latestData.kecepatan_angin : '--';
+                document.getElementById('val-light').textContent = latestData.cahaya_lux !== undefined ? latestData.cahaya_lux : '--';
+                document.getElementById('val-rain').textContent = latestData.curah_hujan !== undefined ? latestData.curah_hujan : '--';
+
+
+                // Siapkan array untuk update Chart
+                let labels = [];
+                let temps = [];
+                let hums = [];
+                let winds = [];
+                let lights = [];
+                let rains = [];
+
+                // Siapkan HTML untuk Tabel
+                let tableHtml = "";
+
+                // Looping dari data terbaru ke terlama untuk ditambahkan ke tabel (descending)
+                for (let i = dataArray.length - 1; i >= 0; i--) {
+                    let d = dataArray[i];
+                    // Format waktu untuk label chart (ambil jam saja HH:MM:SS)
+                    let timeOnly = d.timestamp ? d.timestamp.split(" ")[1] : "";
+
+                    // Tambah baris ke tabel
+                    tableHtml += `
+                        <tr>
+                            <td>${d.timestamp || '-'}</td>
+                            <td class="c-temp">${d.suhu !== undefined ? d.suhu : '-'}</td>
+                            <td class="c-hum">${d.kelembapan !== undefined ? d.kelembapan : '-'}</td>
+                            <td class="c-wind">${d.kecepatan_angin !== undefined ? d.kecepatan_angin : '-'}</td>
+                            <td class="c-light">${d.cahaya_lux !== undefined ? d.cahaya_lux : '-'}</td>
+                            <td class="c-rain">${d.curah_hujan !== undefined ? d.curah_hujan : '-'}</td>
+                        </tr>
+                    `;
+                }
+
+                // Looping dari data terlama ke terbaru untuk Chart (ascending dari kiri ke kanan)
+                for (let i = 0; i < dataArray.length; i++) {
+                    let d = dataArray[i];
+                    let timeOnly = d.timestamp ? d.timestamp.split(" ")[1] : "";
+                    
+                    labels.push(timeOnly);
+                    temps.push(d.suhu);
+                    hums.push(d.kelembapan);
+                    winds.push(d.kecepatan_angin);
+                    lights.push(d.cahaya_lux);
+                    rains.push(d.curah_hujan);
+                }
+
+                // Update Table DOM
+                document.getElementById('table-body').innerHTML = tableHtml;
+
+                // Update Charts
+                updateChart(chartTemp, labels, temps);
+                updateChart(chartHum, labels, hums);
+                updateChart(chartWind, labels, winds);
+                updateChart(chartLight, labels, lights);
+                updateChart(chartRain, labels, rains);
+            }
+        });
+
+        // Fungsi Helper Update Chart
+        function updateChart(chart, labels, data) {
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = data;
+            chart.update();
+        }
+
+    </script>
+
+    <!-- Navigation & Clock Logic -->
+    <script>
+        function switchPage(pageId, element) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const dayName = days[now.getDay()];
+            const date = String(now.getDate()).padStart(2, '0');
+            const monthName = months[now.getMonth()];
+            const year = now.getFullYear();
+            
+            document.getElementById('date').textContent = `${dayName}, ${date} ${monthName} ${year}`;
+        }
+        
+        setInterval(updateTime, 1000);
+        updateTime(); 
+    </script>
+</body>
+</html>
